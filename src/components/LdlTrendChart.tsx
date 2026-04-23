@@ -32,8 +32,8 @@ export default function LdlTrendChart({ patientId, days = 90 }: LdlTrendChartPro
   const threshold = ldlRule?.redThreshold ?? 70;
 
   const chartData = (measurements ?? []).map((m) => ({
-    date: new Date(m.measuredAt).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
-    value: m.value,
+    date: new Date(m.recordedAt).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
+    value: m.value?.ldl,
   }));
 
   return (

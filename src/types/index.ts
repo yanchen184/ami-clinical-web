@@ -90,13 +90,11 @@ export type MeasurementType =
   | 'HEART_RATE';
 
 export interface Measurement {
-  id: number;
+  id: string;
   type: MeasurementType | string;
-  systolic?: number;
-  diastolic?: number;
-  value?: number;
-  unit: string;
-  measuredAt: string;
+  value: Record<string, number>;
+  recordedAt: string;
+  source?: string;
 }
 
 export interface TrendIndicator {

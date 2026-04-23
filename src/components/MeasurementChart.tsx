@@ -20,9 +20,9 @@ export default function MeasurementChart({
   title = '血壓趨勢',
 }: MeasurementChartProps) {
   const chartData = measurements.map((m) => ({
-    date: new Date(m.measuredAt).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
-    收縮壓: m.systolic,
-    舒張壓: m.diastolic,
+    date: new Date(m.recordedAt).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
+    收縮壓: m.value?.systolic,
+    舒張壓: m.value?.diastolic,
   }));
 
   if (chartData.length === 0) {

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>AMI 照護平台 — 文件中心</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f0f4ff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .container {
+    width: 100%;
+    max-width: 760px;
+    padding: 2rem;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .header h1 {
+    font-size: 1.8rem;
+    color: #1e3a8a;
+    margin-bottom: 0.4rem;
+  }
+  .header p {
+    color: #6b7280;
+    font-size: 0.95rem;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.75rem 1.5rem;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    border: 1px solid #e5e7eb;
+    transition: box-shadow 0.15s, transform 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .card:hover {
+    box-shadow: 0 6px 24px rgba(59,130,246,0.15);
+    transform: translateY(-2px);
+  }
+  .card-icon { font-size: 2rem; }
+  .card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e3a8a;
+  }
+  .card-desc {
+    font-size: 0.87rem;
+    color: #6b7280;
+    line-height: 1.55;
+  }
+  .card-tag {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    margin-top: 0.25rem;
+    width: fit-content;
+  }
+  .tag-blue  { background: #dbeafe; color: #1d4ed8; }
+  .tag-green { background: #d1fae5; color: #065f46; }
+  .tag-amber { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>AMI 照護平台</h1>
+    <p>內部文件中心 — 操作手冊 & 開發資料</p>
+  </div>
+  <div class="cards">
+    <a class="card" href="manual_v4.html">
+      <div class="card-icon">📋</div>
+      <div class="card-title">功能操作截圖手冊 v4</div>
+      <div class="card-desc">18 個功能模組、27 張截圖，涵蓋醫師、個管師、管理員三種角色的完整操作流程。</div>
+      <span class="card-tag tag-blue">最新版本</span>
+    </a>
+    <a class="card" href="manual_v3.html">
+      <div class="card-icon">📄</div>
+      <div class="card-title">功能操作截圖手冊 v3</div>
+      <div class="card-desc">v3 版本截圖手冊，供版本比對參考用。</div>
+      <span class="card-tag tag-amber">舊版本</span>
+    </a>
+    <a class="card" href="seed-data.md">
+      <div class="card-icon">🗄️</div>
+      <div class="card-title">測試假資料清單</div>
+      <div class="card-desc">截圖 / E2E 測試用假資料說明，包含帳號、量測資料、SOAP、HIS、警示規則等塞入方式與格式說明。</div>
+      <span class="card-tag tag-green">開發參考</span>
+    </a>
+  </div>
+</div>
+</body>
+</html>
