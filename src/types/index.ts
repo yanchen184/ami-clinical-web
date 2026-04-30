@@ -25,6 +25,12 @@ export interface JwtPayload {
 // ── Patient ──
 export type RiskLevel = 'HIGH' | 'MEDIUM' | 'LOW';
 
+export interface AiBriefing {
+  lastAnalyzedAt: string | null;
+  summaryShort: string | null;
+  pendingTodos: string[];
+}
+
 export interface Patient {
   id: string;
   name: string;
@@ -45,6 +51,7 @@ export interface Patient {
   lastReportDate: string | null;
   createdDate: string;
   lastModifiedDate: string;
+  aiBriefing: AiBriefing | null;
 }
 
 export interface PaginatedResponse<T> {

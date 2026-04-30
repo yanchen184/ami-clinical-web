@@ -22,6 +22,39 @@ import HermesTraceCard from '../../components/HermesTraceCard';
 
 type TabKey = 'overview' | 'hermes' | 'trends' | 'medications' | 'diagnoses' | 'adverse';
 
+const VALID_LAB_NAMES = new Set([
+  'LDL_C', 'HBA1C', 'EGFR', 'SCR', 'SBP', 'DBP', 'AST', 'ALT', 'LVEF',
+]);
+
+type LabEntry = { name: string; value: number; unit?: string; measured_at?: string };
+
+function buildLabsFromMeasurements(
+  ms: Array<{ type: string; value: Record<string, number>; recordedAt?: string }>,
+): LabEntry[] {
+  const out: LabEntry[] = [];
+  for (const m of ms.slice(0, 8)) {
+    const ts = m.recordedAt ?? new Date().toISOString();
+    if (m.type === 'BLOOD_PRESSURE') {
+      const sbp = m.value?.systolic;
+      const dbp = m.value?.diastolic;
+      if (typeof sbp === 'number' && Number.isFinite(sbp)) {
+        out.push({ name: 'SBP', value: sbp, unit: 'mmHg', measured_at: ts });
+      }
+      if (typeof dbp === 'number' && Number.isFinite(dbp)) {
+        out.push({ name: 'DBP', value: dbp, unit: 'mmHg', measured_at: ts });
+      }
+      continue;
+    }
+    if (!VALID_LAB_NAMES.has(m.type)) continue;
+    const firstNum = Object.values(m.value ?? {}).find(
+      (v): v is number => typeof v === 'number' && Number.isFinite(v),
+    );
+    if (firstNum == null) continue;
+    out.push({ name: m.type, value: firstNum, measured_at: ts });
+  }
+  return out;
+}
+
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: '總覽' },
   { key: 'hermes', label: 'Hermes 流程' },
@@ -62,12 +95,6 @@ export default function DoctorPatientDetailPage() {
   const analyzeMutation = useMutation({
     mutationFn: () => {
       const dx = (patient?.diagnosis ?? '') + ' ' + (patient?.dischargeDiagnosis ?? '');
-      const firstValue = (m: { value: Record<string, unknown> }) => {
-        for (const v of Object.values(m.value ?? {})) {
-          if (typeof v === 'number' && Number.isFinite(v)) return v;
-        }
-        return 0;
-      };
       const fixture: PatientFixture = {
         patientId,
         age: patient?.age ?? undefined,
@@ -78,13 +105,7 @@ export default function DoctorPatientDetailPage() {
         has_hyperlipidemia: /lipid|hld/i.test(dx),
         has_hf: /heart\s*failure|\bhf\b/i.test(dx),
         has_ckd: /renal|ckd/i.test(dx),
-        labs:
-          measurements?.slice(0, 8).map((m) => ({
-            name: typeof m.type === 'string' ? m.type : 'BP',
-            value: firstValue(m),
-            unit: '',
-            measured_at: m.recordedAt ?? new Date().toISOString(),
-          })) ?? [],
+        labs: buildLabsFromMeasurements(measurements ?? []),
         medications: [],
         note: 'Triggered from DoctorPatientDetailPage Hermes tab',
       };
@@ -252,7 +273,7 @@ export default function DoctorPatientDetailPage() {
                   Hermes Agents 流程追蹤
                 </h3>
                 <p className="mt-1 text-sm text-primary-800/80">
-                  按下「立即分析」會觸發 Hermes 7 步驟
+                  按下「立即分析」會觸發 Hermes 9 步驟
                   pipeline，並顯示每一步的耗時與輸入輸出。
                 </p>
               </div>
@@ -300,6 +321,29 @@ export default function DoctorPatientDetailPage() {
                   </strong>
                 </li>
               </ul>
+
+              {analyzeResult.rule_sources && analyzeResult.rule_sources.length > 0 && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <p className="mb-1.5 text-xs font-semibold text-slate-500">
+                    📚 引用規則來源（{analyzeResult.rule_sources.length}）
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {analyzeResult.rule_sources.map((src, i) => (
+                      <span
+                        key={`${src}-${i}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800"
+                        title={src}
+                      >
+                        <span aria-hidden>📄</span>
+                        {src}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-400">
+                    詳細文獻內容請展開下方步驟 5「向量檢索文獻」查看
+                  </p>
+                </div>
+              )}
             </section>
           )}
 

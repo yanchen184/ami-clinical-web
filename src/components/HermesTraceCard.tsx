@@ -8,16 +8,74 @@ interface HermesTraceCardProps {
 const STEP_ICONS: Record<string, string> = {
   ingest: '📥',
   skill_load: '🧠',
+  rule_compute: '📐',
   rag_decide: '🎯',
   rag_search: '🔍',
   few_shot: '📚',
   llm: '✨',
+  rule_validate: '🛡️',
   persist: '💾',
 };
+
+interface RagHit {
+  title?: string;
+  snippet?: string;
+  source?: string;
+}
+
+function isRagSearchStep(step: HermesStep): step is HermesStep & {
+  detail: { hits: RagHit[] };
+} {
+  if (step.name !== 'rag_search') return false;
+  const hits = (step.detail as { hits?: unknown } | undefined)?.hits;
+  return Array.isArray(hits);
+}
+
+function RagHitsList({ hits }: { hits: RagHit[] }) {
+  if (hits.length === 0) {
+    return <p className="mt-2 text-xs text-slate-500">本次未啟用 RAG 或無命中文獻</p>;
+  }
+  return (
+    <ul className="mt-2 space-y-2">
+      {hits.map((h, i) => (
+        <li
+          key={`${h.source ?? i}-${i}`}
+          className="rounded border border-slate-200 bg-slate-50 p-2"
+        >
+          <div className="flex items-baseline gap-2">
+            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+              文獻 {i + 1}
+            </span>
+            <a
+              href={h.source || '#'}
+              onClick={(e) => {
+                if (!h.source || h.source === '#') e.preventDefault();
+              }}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-primary-800 hover:underline"
+            >
+              {h.title || h.source || '未命名來源'}
+            </a>
+          </div>
+          {h.snippet && (
+            <p className="mt-1 text-xs text-slate-700 line-clamp-3">{h.snippet}</p>
+          )}
+          {h.source && (
+            <p className="mt-1 truncate text-[10px] font-mono text-slate-400">
+              {h.source}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function StepRow({ step, isLast }: { step: HermesStep; isLast: boolean }) {
   const [open, setOpen] = useState(false);
   const icon = STEP_ICONS[step.name] ?? '⚙️';
+  const isRag = isRagSearchStep(step);
   return (
     <li className="relative pl-10">
       {/* timeline dot */}
@@ -43,13 +101,17 @@ function StepRow({ step, isLast }: { step: HermesStep; isLast: boolean }) {
           </span>
         </div>
         <p className="mt-1 text-sm text-slate-700">{step.summary}</p>
+
+        {/* rag_search 特化：列出文獻引用 */}
+        {isRag && <RagHitsList hits={step.detail.hits} />}
+
         {step.detail && Object.keys(step.detail).length > 0 && (
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="mt-2 text-xs text-primary-700 hover:underline"
           >
-            {open ? '收合詳細資料 ▴' : '展開詳細資料 ▾'}
+            {open ? '收合 raw detail ▴' : '展開 raw detail ▾'}
           </button>
         )}
         {open && (
@@ -69,7 +131,7 @@ export default function HermesTraceCard({ trace }: HermesTraceCardProps) {
         data-testid="hermes-trace-empty"
         className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500"
       >
-        尚無 Hermes 追蹤資料。觸發一次 AI 分析即可看到 7 步驟流程。
+        尚無 Hermes 追蹤資料。觸發一次 AI 分析即可看到 9 步驟流程。
       </div>
     );
   }
@@ -78,7 +140,7 @@ export default function HermesTraceCard({ trace }: HermesTraceCardProps) {
     <section data-testid="hermes-trace-card" className="space-y-3">
       <header className="flex items-baseline justify-between">
         <h3 className="text-lg font-semibold text-primary-900">
-          Hermes 7 步驟流程
+          Hermes 9 步驟流程
         </h3>
         <span className="text-sm text-slate-600">
           總耗時 <strong className="font-mono">{trace.total_ms} ms</strong>
