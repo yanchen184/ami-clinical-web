@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { MOCK_PATIENTS, type MockHisRecord } from '../rulebase/mockHis';
 import { runHermesEngine, type HermesAnalysis } from '../services/hermesEngine';
+import {
+  analyzePatient,
+  mockHisToPatientState,
+  type AnalyzeResponseWire,
+} from '../services/aiService';
 import CdssAdviceCard from '../components/CdssAdviceCard';
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
@@ -72,6 +77,71 @@ function CandidateRow({ candidate }: { candidate: HermesAnalysis['reasoning']['c
   );
 }
 
+interface AiState {
+  status: 'idle' | 'loading' | 'ok' | 'error';
+  result?: AnalyzeResponseWire;
+  error?: string;
+  patientId?: string;
+}
+
+function HermesTracePanel({ trace }: { trace: NonNullable<AnalyzeResponseWire['trace']> }) {
+  return (
+    <div className="space-y-2">
+      {trace.steps.map((s) => (
+        <details
+          key={s.step}
+          className="bg-gray-50 rounded-md border border-gray-200 px-3 py-2 text-sm"
+        >
+          <summary className="cursor-pointer flex justify-between items-baseline">
+            <span className="font-medium text-gray-900">
+              {s.step}. {s.title}
+            </span>
+            <span className="text-xs text-gray-500">{s.duration_ms}ms</span>
+          </summary>
+          <p className="text-xs text-gray-600 mt-2">{s.summary}</p>
+          {Object.keys(s.detail).length > 0 && (
+            <pre className="mt-2 text-xs bg-white border rounded p-2 overflow-x-auto">
+              {JSON.stringify(s.detail, null, 2)}
+            </pre>
+          )}
+        </details>
+      ))}
+      <p className="text-xs text-gray-500 text-right">total {trace.total_ms}ms</p>
+    </div>
+  );
+}
+
+function RealCdssList({ items, emptyText }: { items: AnalyzeResponseWire['cdss']['recommendations']; emptyText: string }) {
+  if (items.length === 0) {
+    return <p className="text-xs text-gray-400">{emptyText}</p>;
+  }
+  return (
+    <ul className="space-y-2 text-sm">
+      {items.map((it, i) => (
+        <li key={i} className="border border-gray-200 rounded-md px-3 py-2 bg-white">
+          <div className="flex items-baseline gap-2">
+            {it.priority && (
+              <span
+                className={`text-xs px-1.5 py-0.5 rounded ${
+                  it.priority === 'HIGH'
+                    ? 'bg-red-100 text-red-700'
+                    : it.priority === 'MEDIUM'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {it.priority}
+              </span>
+            )}
+            <span className="text-gray-900">{it.content}</span>
+          </div>
+          {it.source && <p className="text-xs text-gray-400 mt-1">source: {it.source}</p>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function RulebaseDemoPage() {
   const [selectedId, setSelectedId] = useState<string>(MOCK_PATIENTS[0].chrNoNew);
   const patient = useMemo(
@@ -79,6 +149,23 @@ export default function RulebaseDemoPage() {
     [selectedId]
   );
   const analysis = useMemo(() => runHermesEngine({ patient }), [patient]);
+  const [ai, setAi] = useState<AiState>({ status: 'idle' });
+
+  async function runRealAnalyze() {
+    setAi({ status: 'loading', patientId: patient.chrNoNew });
+    try {
+      const result = await analyzePatient(mockHisToPatientState(patient));
+      setAi({ status: 'ok', result, patientId: patient.chrNoNew });
+    } catch (e) {
+      setAi({
+        status: 'error',
+        error: e instanceof Error ? e.message : String(e),
+        patientId: patient.chrNoNew,
+      });
+    }
+  }
+
+  const aiResult = ai.status === 'ok' && ai.patientId === patient.chrNoNew ? ai.result : undefined;
 
   const adherencePct =
     analysis.reasoning.adherenceRating.ratio !== null
@@ -222,6 +309,81 @@ export default function RulebaseDemoPage() {
               </ul>
             </Section>
           )}
+
+          {/* Real AI service */}
+          <Section title="實際 AI 服務（V4 9-step pipeline）">
+            <div className="flex items-center gap-3 mb-3">
+              <button
+                onClick={runRealAnalyze}
+                disabled={ai.status === 'loading'}
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {ai.status === 'loading' ? '呼叫中...' : `對 ${patient.chrNoNew} 跑一次真實 /analyze`}
+              </button>
+              {ai.status === 'error' && ai.patientId === patient.chrNoNew && (
+                <span className="text-xs text-red-600">{ai.error}</span>
+              )}
+              {aiResult && (
+                <span className="text-xs text-gray-500">
+                  summary_id={aiResult.summary_id} · {aiResult.latency_ms}ms · used_rag=
+                  {String(aiResult.used_rag)}
+                </span>
+              )}
+            </div>
+            {aiResult && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">SOAP - S</p>
+                    <p className="text-gray-700">{aiResult.soap.S}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">SOAP - O</p>
+                    <p className="text-gray-700">{aiResult.soap.O}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">SOAP - A</p>
+                    <p className="text-gray-700">{aiResult.soap.A}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">SOAP - P</p>
+                    <pre className="text-gray-700 whitespace-pre-wrap font-sans">{aiResult.soap.P}</pre>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">CDSS recommendations</p>
+                  <RealCdssList
+                    items={aiResult.cdss.recommendations}
+                    emptyText="（無建議）"
+                  />
+                </div>
+                {aiResult.cdss.warnings.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-2">CDSS warnings</p>
+                    <RealCdssList items={aiResult.cdss.warnings} emptyText="" />
+                  </div>
+                )}
+                {aiResult.rule_sources.length > 0 && (
+                  <p className="text-xs text-gray-400">
+                    rule_sources: {aiResult.rule_sources.slice(0, 8).join(', ')}
+                    {aiResult.rule_sources.length > 8 ? ` … (+${aiResult.rule_sources.length - 8})` : ''}
+                  </p>
+                )}
+                {aiResult.trace && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-2">9-step Hermes trace</p>
+                    <HermesTracePanel trace={aiResult.trace} />
+                  </div>
+                )}
+              </div>
+            )}
+            {!aiResult && ai.status !== 'error' && (
+              <p className="text-xs text-gray-400">
+                按上方按鈕呼叫 ami-ai-service /analyze（預設 http://localhost:17900；可用
+                VITE_AI_SERVICE_URL 覆寫）。
+              </p>
+            )}
+          </Section>
 
           {/* Disclaimer */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-xs text-yellow-800">
