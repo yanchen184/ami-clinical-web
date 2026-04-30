@@ -31,10 +31,20 @@ export default function LdlTrendChart({ patientId, days = 90 }: LdlTrendChartPro
   const ldlRule = alertRules?.find((r) => r.metric === 'LDL_C');
   const threshold = ldlRule?.redThreshold ?? 70;
 
-  const chartData = (measurements ?? []).map((m) => ({
-    date: new Date(m.recordedAt).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
-    value: m.value?.ldl,
-  }));
+  const chartData = (measurements ?? [])
+    .filter((m) => m.value && typeof m.value.ldl === 'number')
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
+    )
+    .map((m) => ({
+      date: new Date(m.recordedAt).toLocaleDateString('zh-TW', {
+        month: 'short',
+        day: 'numeric',
+      }),
+      value: m.value.ldl,
+    }));
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -67,6 +77,7 @@ export default function LdlTrendChart({ patientId, days = 90 }: LdlTrendChartPro
               strokeWidth={2}
               dot={{ r: 3 }}
               activeDot={{ r: 5 }}
+              connectNulls
             />
           </LineChart>
         </ResponsiveContainer>

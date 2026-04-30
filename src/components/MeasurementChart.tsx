@@ -19,11 +19,26 @@ export default function MeasurementChart({
   measurements,
   title = '血壓趨勢',
 }: MeasurementChartProps) {
-  const chartData = measurements.map((m) => ({
-    date: new Date(m.recordedAt).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
-    收縮壓: m.value?.systolic,
-    舒張壓: m.value?.diastolic,
-  }));
+  const chartData = measurements
+    .filter(
+      (m) =>
+        m.value &&
+        typeof m.value.systolic === 'number' &&
+        typeof m.value.diastolic === 'number',
+    )
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
+    )
+    .map((m) => ({
+      date: new Date(m.recordedAt).toLocaleDateString('zh-TW', {
+        month: 'short',
+        day: 'numeric',
+      }),
+      收縮壓: m.value.systolic,
+      舒張壓: m.value.diastolic,
+    }));
 
   if (chartData.length === 0) {
     return (
@@ -51,6 +66,7 @@ export default function MeasurementChart({
             strokeWidth={2}
             dot={{ r: 3 }}
             activeDot={{ r: 5 }}
+            connectNulls
           />
           <Line
             type="monotone"
@@ -59,6 +75,7 @@ export default function MeasurementChart({
             strokeWidth={2}
             dot={{ r: 3 }}
             activeDot={{ r: 5 }}
+            connectNulls
           />
         </LineChart>
       </ResponsiveContainer>

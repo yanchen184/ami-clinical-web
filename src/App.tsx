@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from './store/authStore';
@@ -14,6 +15,7 @@ import AlertRulePage from './pages/admin/AlertRulePage';
 import MedMasterPage from './pages/admin/MedMasterPage';
 import FormulaMasterPage from './pages/admin/FormulaMasterPage';
 import FormulaComboPage from './pages/admin/FormulaComboPage';
+import AiDemoPage from './pages/AiDemoPage';
 import type { Role } from './types';
 
 const queryClient = new QueryClient({
@@ -38,10 +40,22 @@ function ProtectedRoute({ allowedRoles }: { allowedRoles?: Role[] }) {
     return <Navigate to={home} replace />;
   }
 
+  return <AppLayout />;
+}
+
+function AppLayout() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <main className="ml-60 p-8">
+      <Sidebar isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <button
+        onClick={() => setDrawerOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg bg-primary-800 text-white shadow"
+        aria-label="開啟選單"
+      >
+        <span aria-hidden="true">☰</span>
+      </button>
+      <main className="md:ml-60 p-4 md:p-8">
         <Outlet />
       </main>
     </div>
@@ -69,6 +83,9 @@ export default function App() {
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
           </Route>
+
+          {/* Public AI Feedback-Loop Demo (no auth) */}
+          <Route path="/ai-demo" element={<AiDemoPage />} />
 
           {/* Common Authenticated Routes */}
           <Route element={<ProtectedRoute />}>

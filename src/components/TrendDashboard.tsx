@@ -91,10 +91,17 @@ export default function TrendDashboard({ patientId }: TrendDashboardProps) {
 
   const selected = indicators?.find((i) => i.metric === selectedMetric) ?? indicators?.[0];
   const chartColor = selected ? (METRIC_COLORS[selected.metric] ?? '#3b82f6') : '#3b82f6';
-  const chartData = selected?.dataPoints.map((p) => ({
-    date: new Date(p.date).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
-    value: p.value,
-  })) ?? [];
+  const chartData = (selected?.dataPoints ?? [])
+    .filter((p) => typeof p.value === 'number' && Number.isFinite(p.value))
+    .slice()
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .map((p) => ({
+      date: new Date(p.date).toLocaleDateString('zh-TW', {
+        month: 'short',
+        day: 'numeric',
+      }),
+      value: p.value,
+    }));
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -164,6 +171,7 @@ export default function TrendDashboard({ patientId }: TrendDashboardProps) {
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     activeDot={{ r: 5 }}
+                    connectNulls
                   />
                 </LineChart>
               </ResponsiveContainer>

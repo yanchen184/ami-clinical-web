@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { submitDoctorFeedback } from '../api/patient';
-import type { CdssAdvice, SoapSummary } from '../types';
+import type { CdssAdvice, DoctorFeedback, SoapSummary } from '../types';
 import CdssAdviceCard from './CdssAdviceCard';
 
 interface AiAdvicePanelProps {
@@ -10,11 +10,21 @@ interface AiAdvicePanelProps {
   cdssAdvice: CdssAdvice[] | undefined;
 }
 
+const REASON_OPTIONS: { value: NonNullable<DoctorFeedback['reasonCategory']>; label: string }[] = [
+  { value: 'dose_too_high', label: '劑量偏高' },
+  { value: 'dose_too_low', label: '劑量不足' },
+  { value: 'wrong_drug', label: '藥物選擇錯誤' },
+  { value: 'contraindication', label: '違反禁忌症' },
+  { value: 'other', label: '其他' },
+];
+
 export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvicePanelProps) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [correctedAssessment, setCorrectedAssessment] = useState('');
   const [correctedPlan, setCorrectedPlan] = useState('');
+  const [reasonCategory, setReasonCategory] =
+    useState<DoctorFeedback['reasonCategory']>('other');
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   const showCorrectionFields = rating > 0 && rating <= 2;
@@ -26,6 +36,16 @@ export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvi
 
   const handleSubmit = () => {
     if (rating === 0) return;
+    const correctedSoap =
+      showCorrectionFields && (correctedAssessment || correctedPlan)
+        ? {
+            S: summary?.subjective ?? '',
+            O: summary?.objective ?? '',
+            A: correctedAssessment || summary?.assessment || '',
+            P: correctedPlan || summary?.plan || '',
+          }
+        : undefined;
+
     feedbackMutation.mutate({
       patientId,
       rating,
@@ -33,6 +53,8 @@ export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvi
       ...(showCorrectionFields && {
         correctedAssessment: correctedAssessment || undefined,
         correctedPlan: correctedPlan || undefined,
+        correctedSoap,
+        reasonCategory,
       }),
     });
   };
@@ -42,6 +64,11 @@ export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvi
       {/* CDSS Advice */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">CDSS 調藥建議</h3>
+        {cdssAdvice && cdssAdvice.length > 0 && cdssAdvice.every((a) => !a.priority) && (
+          <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            ※ 本批建議來源 SKILL 規則尚未標註優先序，僅顯示類型徽章。
+          </div>
+        )}
         <div className="space-y-4">
           {cdssAdvice?.map((advice) => (
             <CdssAdviceCard key={advice.id} advice={advice} />
@@ -90,6 +117,28 @@ export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvi
             {showCorrectionFields && (
               <div className="space-y-3 border border-orange-200 bg-orange-50 rounded-lg p-4">
                 <p className="text-sm font-medium text-orange-800">訂正 SOAP 評估與計畫</p>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    訂正分類（用於 Hermes 聚合 pattern）
+                  </label>
+                  <select
+                    value={reasonCategory ?? 'other'}
+                    onChange={(e) =>
+                      setReasonCategory(
+                        e.target.value as DoctorFeedback['reasonCategory'],
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-orange-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    data-testid="feedback-reason-category"
+                  >
+                    {REASON_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">

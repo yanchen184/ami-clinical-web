@@ -1,0 +1,183 @@
+{
+  "ts": "2026-04-28T04:45:54.229Z",
+  "passed": 25,
+  "failed": 0,
+  "total": 25,
+  "checks": [
+    {
+      "id": "shared.svc.clinical-web :17000",
+      "part": "shared",
+      "label": "clinical-web :17000 reachable",
+      "pass": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "shared.svc.clinical-api :17081 (via proxy)",
+      "part": "shared",
+      "label": "clinical-api :17081 (via proxy) reachable",
+      "pass": true,
+      "detail": "HTTP 405"
+    },
+    {
+      "id": "shared.svc.ai-service :17900",
+      "part": "shared",
+      "label": "ai-service :17900 reachable",
+      "pass": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "shared.svc.patient-api :16000",
+      "part": "shared",
+      "label": "patient-api :16000 reachable",
+      "pass": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "shared.svc.patient-web :17001",
+      "part": "shared",
+      "label": "patient-web :17001 reachable",
+      "pass": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "shared.health",
+      "part": "shared",
+      "label": "ai-service all components ok",
+      "pass": true,
+      "detail": "gemini=true db=true pgvector=true skills=true | model=gemini-2.5-flash-lite"
+    },
+    {
+      "id": "A.login.doctor01",
+      "part": "A",
+      "label": "doctor01 can login",
+      "pass": true,
+      "detail": "token len=677"
+    },
+    {
+      "id": "A.login.cm01",
+      "part": "A",
+      "label": "cm01 can login",
+      "pass": true,
+      "detail": "token len=683"
+    },
+    {
+      "id": "A.login.admin",
+      "part": "A",
+      "label": "admin can login",
+      "pass": true,
+      "detail": "token len=679"
+    },
+    {
+      "id": "A.patients.count",
+      "part": "A",
+      "label": "patient list ≥ 5",
+      "pass": true,
+      "detail": "total=6 firstId=474c4369-dd68-4076-8513-7bc14a67ed7c status=200"
+    },
+    {
+      "id": "A.patients.detail",
+      "part": "A",
+      "label": "patient detail required fields filled",
+      "pass": true,
+      "detail": "all 5 fields present"
+    },
+    {
+      "id": "A.kpi",
+      "part": "A",
+      "label": "KPI summary endpoint returns non-zero",
+      "pass": true,
+      "detail": "/api/kpi/summary → 200, numbers: 6,3,3,2,1,1,3"
+    },
+    {
+      "id": "A.redalerts",
+      "part": "A",
+      "label": "red alerts list ≥ 1",
+      "pass": true,
+      "detail": "/api/casemanager/red-alerts → count=3"
+    },
+    {
+      "id": "A.calendar",
+      "part": "A",
+      "label": "calendar events ≥ 1",
+      "pass": true,
+      "detail": "/api/casemanager/calendar → count=5"
+    },
+    {
+      "id": "A.trends",
+      "part": "A",
+      "label": "measurement spans ≥ 7 distinct days",
+      "pass": true,
+      "detail": "/api/patients/474c4369-dd68-4076-8513-7bc14a67ed7c/measurements → distinct days=31"
+    },
+    {
+      "id": "A.medications",
+      "part": "A",
+      "label": "medications non-empty",
+      "pass": true,
+      "detail": "/api/patients/474c4369-dd68-4076-8513-7bc14a67ed7c/medications → 6"
+    },
+    {
+      "id": "A.diagnoses",
+      "part": "A",
+      "label": "diagnoses non-empty",
+      "pass": true,
+      "detail": "/api/patients/474c4369-dd68-4076-8513-7bc14a67ed7c/diagnoses → 5"
+    },
+    {
+      "id": "B.analyze.status",
+      "part": "B",
+      "label": "/ai/analyze returns 200",
+      "pass": true,
+      "detail": "status=200, body keys: summary_id,soap,cdss,rule_sources,used_rag,triggers,skill_versions,latency_ms,trace,local_summary_id"
+    },
+    {
+      "id": "B.analyze.7steps",
+      "part": "B",
+      "label": "trace has 7 steps with per-step duration",
+      "pass": true,
+      "detail": "step count=7, all have duration_ms=true"
+    },
+    {
+      "id": "B.summary",
+      "part": "B",
+      "label": "analyze summary 4 fields filled (id/latency/used_rag/skill_versions)",
+      "pass": true,
+      "detail": "summary_id=true, latency=5491, used_rag=true, skill_versions={\"SOUL\":\"2026-04-27\",\"ami\":\"2026-04-27\",\"diabetes\":\"2026-04-27\",\"hypertension\":\""
+    },
+    {
+      "id": "B.rule_sources.inline",
+      "part": "B",
+      "label": "analyze rule_sources contains SKILL/* AND example#*",
+      "pass": true,
+      "detail": "count=17, has SKILL=true, has example=true, samples=SKILL/ami#AMI-001|SKILL/ami#AMI-002|SKILL/ami#AMI-003"
+    },
+    {
+      "id": "B.cdss.inline",
+      "part": "B",
+      "label": "analyze response has ≥3 CDSS recommendations",
+      "pass": true,
+      "detail": "recommendations count=15, warnings=1"
+    },
+    {
+      "id": "B.soap",
+      "part": "B",
+      "label": "SOAP four sections persisted (subjective/objective/assessment/plan)",
+      "pass": true,
+      "detail": "status=200, keys=id,patientId,subjective,objective,assessment,plan,generatedAt,promptVersion,cdssAdvice"
+    },
+    {
+      "id": "B.cdss.persist",
+      "part": "B",
+      "label": "cdss-advice persisted to DB after /analyze",
+      "pass": true,
+      "detail": "count=16"
+    },
+    {
+      "id": "B.cdss.shape",
+      "part": "B",
+      "label": "CdssAdviceCard shape (type/content/confidence)",
+      "pass": true,
+      "detail": "keys=rule_id,createdAt,confidence,id,source,type,content"
+    }
+  ]
+}

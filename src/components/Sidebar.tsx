@@ -28,7 +28,12 @@ const ADMIN_NAV: NavItem[] = [
   { label: '配方組合', to: '/admin/formula-combos', icon: '🔗' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps = {}) {
   const { username, isDoctor, isCaseManager, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -44,7 +49,19 @@ export default function Sidebar() {
   const roleLabel = isAdmin ? '管理員' : isDoctor ? '醫師' : isCaseManager ? '個管師' : '使用者';
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 bg-primary-800 text-white flex flex-col">
+    <>
+      {isOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed left-0 top-0 h-screen w-60 bg-primary-800 text-white flex flex-col z-50 transition-transform duration-200 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0`}
+      >
       {/* Logo */}
       <div className="p-6 border-b border-primary-700">
         <h1 className="text-xl font-bold tracking-wide">AMI 照護平台</h1>
@@ -57,6 +74,7 @@ export default function Sidebar() {
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
                 isActive
@@ -106,6 +124,7 @@ export default function Sidebar() {
           登出
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

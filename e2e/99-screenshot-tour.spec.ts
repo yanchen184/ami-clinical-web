@@ -207,6 +207,70 @@ test.describe('AMI Clinical Web — 18 Feature Screenshot Tour', () => {
   });
 
   // ====================================================
+  // 功能 3c: Hermes 7 步驟流程視覺化（Trace）
+  // ====================================================
+  test('03e_hermes_trace_pipeline', async ({ browser }) => {
+    if (!firstPatientId) { console.log('[skip] no patient'); return; }
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1440, height: 1200 });
+    await setToken(page, doctorToken);
+    // mock /analyze response so HermesTraceCard always renders 7 steps
+    await page.route(url => {
+      const u = url.toString();
+      return u.includes('/ai/analyze') || u.endsWith('/analyze');
+    }, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          summary_id: 99, soap: { S: '示範 S', O: '示範 O', A: '示範 A', P: '示範 P' },
+          cdss: { recommendations: [], warnings: [], rule_sources: [] },
+          rule_sources: [], used_rag: true, triggers: [],
+          skill_versions: { ami: '2026-04-27', diabetes: '2026-04-27' },
+          latency_ms: 7676,
+          trace: {
+            total_ms: 7676,
+            steps: [
+              { step: 1, name: 'ingest', title: '病患資料攝入', duration_ms: 12, summary: '收到病患 p002 — AMI + DM', detail: { patient_id: 'p002', icd10: ['I21.0'] } },
+              { step: 2, name: 'skill_load', title: '技能包載入', duration_ms: 45, summary: '載入 SKILL/ami v2026-04-27, SKILL/diabetes v2026-04-27', detail: { skills: ['ami', 'diabetes'] } },
+              { step: 3, name: 'rag_decide', title: 'RAG 決策', duration_ms: 8, summary: '判定需要 RAG（共病條件觸發）', detail: { use_rag: true, reason: 'comorbidity_match' } },
+              { step: 4, name: 'rag_search', title: 'RAG 文獻檢索', duration_ms: 320, summary: '檢索到 5 篇相關文獻 + 3 個 few-shot 範例', detail: { hits: 5, examples: 3 } },
+              { step: 5, name: 'few_shot', title: '範例組裝', duration_ms: 18, summary: '組合 3 個 example（含 NEGATIVE feedback 學習）', detail: { count: 3 } },
+              { step: 6, name: 'llm', title: 'LLM 推理', duration_ms: 7180, summary: 'Gemini-2.5-flash-lite 產出 SOAP + CDSS 建議', detail: { model: 'gemini-2.5-flash-lite', input_tokens: 2150, output_tokens: 920 } },
+              { step: 7, name: 'persist', title: '結果落庫', duration_ms: 93, summary: '寫入 ai_summary.id=99', detail: { ai_summary_id: 99 } },
+            ],
+          },
+        }),
+      });
+    });
+    await page.goto(`${BASE_URL}/doctor/patients/${firstPatientId}`, { timeout: 60000 });
+    await waitReady(page, 'text=Hermes SOAP');
+    // 1. switch to Hermes 流程 tab (analyze button lives inside it)
+    const hermesTab = page.locator('button, [role="tab"]').filter({ hasText: /Hermes\s*流程/ }).first();
+    if (await hermesTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await hermesTab.click();
+      await page.waitForTimeout(400);
+    }
+    // 2. click 立即觸發 AI 分析 button
+    const analyzeBtn = page.locator('button').filter({ hasText: /立即觸發\s*AI\s*分析|重新分析|觸發.*分析/ }).first();
+    if (await analyzeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await analyzeBtn.click();
+    }
+    // 3. wait for trace card (mocked response renders 7 steps)
+    await page.waitForSelector('[data-testid="hermes-trace-card"]', { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+    // scroll trace card into view
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hermes-trace-card"]') as HTMLElement | null;
+      if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, '03e_hermes_trace_pipeline.png'), fullPage: true });
+    console.log('[shot] 03e_hermes_trace_pipeline.png (full page)');
+    await page.close();
+  });
+
+  // ====================================================
   // 功能 4: AI 建議面板 + 醫師回饋（評分 ≤ 2 → 訂正）
   // ====================================================
   test('04a_ai_advice_panel', async ({ browser }) => {
@@ -397,6 +461,28 @@ test.describe('AMI Clinical Web — 18 Feature Screenshot Tour', () => {
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1440, height: 900 });
     await setToken(page, cmToken);
+    // 後端尚無 follow-ups API，mock 假資料：當前週 (週一-週日) 內 3 筆事件
+    await page.route(/\/api\/follow-ups(\?.*)?$/, async (route) => {
+      if (route.request().method() !== 'GET') { await route.continue(); return; }
+      const today = new Date();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const day = (offset: number, hour: number, min: number) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + offset);
+        d.setHours(hour, min, 0, 0);
+        return d.toISOString();
+      };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        code: 'SUCCESS', success: true,
+        data: [
+          { id: 1, patientId: '474c4369-dd68-4076-8513-7bc14a67ed7c', patientName: '陳志明', type: 'PHONE', scheduledAt: day(1, 10, 0), note: '電話追蹤血壓控制狀況', status: 'SCHEDULED' },
+          { id: 2, patientId: '474c4369-dd68-4076-8513-7bc14a67ed7c', patientName: '陳志明', type: 'CLINIC', scheduledAt: day(2, 14, 30), note: '心臟內科回診', status: 'SCHEDULED' },
+          { id: 3, patientId: '474c4369-dd68-4076-8513-7bc14a67ed7c', patientName: '陳志明', type: 'LAB', scheduledAt: day(4, 9, 0), note: 'LDL-C 抽血追蹤', status: 'SCHEDULED' },
+        ],
+      })});
+    });
     await page.goto(`${BASE_URL}/casemanager/patients`, { timeout: 60000 });
     await waitReady(page, 'text=追蹤行事曆');
     await page.locator('button:has-text("追蹤行事曆")').first().click().catch(() => {});
@@ -523,9 +609,16 @@ test.describe('AMI Clinical Web — 18 Feature Screenshot Tour', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
         code: 'SUCCESS', success: true,
         data: { content: [
-          { id: 1, name: 'Rosuvastatin 低強度', ldlReductionPct: 30, category: 'STATIN', insuranceType: 'NHI', enabled: true, items: [] },
-          { id: 2, name: 'Atorvastatin 中強度', ldlReductionPct: 45, category: 'STATIN', insuranceType: 'NHI', enabled: true, items: [] },
-          { id: 3, name: 'Ezetimibe 加成', ldlReductionPct: 18, category: 'COMBINATION', insuranceType: 'NHI', enabled: true, items: [] },
+          { id: 1, name: 'Rosuvastatin 低強度', ldlReductionPct: 30, category: 'STATIN', insuranceType: 'NHI', enabled: true, items: [
+            { id: 101, drugId: 2, drugName: 'Rosuvastatin 5mg', dosage: '1 tab', frequency: 'QD', route: 'PO' },
+          ] },
+          { id: 2, name: 'Atorvastatin 中強度', ldlReductionPct: 45, category: 'STATIN', insuranceType: 'NHI', enabled: true, items: [
+            { id: 201, drugId: 1, drugName: 'Atorvastatin 10mg', dosage: '2 tab', frequency: 'QD', route: 'PO' },
+          ] },
+          { id: 3, name: 'Ezetimibe 加成', ldlReductionPct: 18, category: 'COMBINATION', insuranceType: 'NHI', enabled: true, items: [
+            { id: 301, drugId: 3, drugName: 'Ezetimibe 10mg', dosage: '1 tab', frequency: 'QD', route: 'PO' },
+            { id: 302, drugId: 1, drugName: 'Atorvastatin 10mg', dosage: '1 tab', frequency: 'QD', route: 'PO' },
+          ] },
         ], totalElements: 3, totalPages: 1, number: 0, size: 20 },
       })});
     });

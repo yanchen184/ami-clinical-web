@@ -1,31 +1,80 @@
-import type { AdviceType, CdssAdvice } from '../types';
+import type { AdvicePriority, AdviceType, CdssAdvice } from '../types';
 
-// API may return legacy format with {priority, advice} instead of {type, content, confidence, disclaimer}
+// API may return legacy format with {priority, advice} or hermes format with
+// {type: RECOMMENDATION/WARNING/INFO, content, source, priority}.
 interface LegacyCdssAdvice {
   id?: number;
-  priority?: 'HIGH' | 'MEDIUM' | 'LOW';
+  priority?: AdvicePriority;
   advice?: string;
   createdAt?: string;
 }
 
-type CdssAdviceInput = CdssAdvice | LegacyCdssAdvice;
+interface HermesCdssAdvice {
+  id?: number;
+  type?: string;
+  content?: string;
+  confidence?: number;
+  source?: string;
+  rule_id?: string;
+  disclaimer?: string;
+  priority?: AdvicePriority | null;
+  createdAt?: string;
+}
+
+type CdssAdviceInput = CdssAdvice | LegacyCdssAdvice | HermesCdssAdvice;
 
 interface CdssAdviceCardProps {
   advice: CdssAdviceInput;
 }
 
-const TYPE_CONFIG: Record<AdviceType, { icon: string; label: string; color: string }> = {
+interface AdviceVisualConfig {
+  icon: string;
+  label: string;
+  color: string;
+}
+
+const TYPE_CONFIG: Record<AdviceType, AdviceVisualConfig> = {
   MEDICATION: { icon: '💊', label: '用藥建議', color: 'text-blue-600' },
   LIFESTYLE: { icon: '🏃', label: '生活型態', color: 'text-green-600' },
   REFERRAL: { icon: '🏥', label: '轉介建議', color: 'text-purple-600' },
   MONITORING: { icon: '📋', label: '監測項目', color: 'text-orange-600' },
 };
 
-const PRIORITY_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
-  HIGH: { icon: '🔴', label: '高優先', color: 'text-red-600' },
-  MEDIUM: { icon: '🟡', label: '中優先', color: 'text-yellow-600' },
-  LOW: { icon: '🟢', label: '低優先', color: 'text-green-600' },
+// Hermes / SKILL pipeline emits these higher-level categories.
+const HERMES_TYPE_CONFIG: Record<string, AdviceVisualConfig> = {
+  RECOMMENDATION: { icon: '💡', label: '臨床建議', color: 'text-blue-600' },
+  WARNING: { icon: '⚠️', label: '警示', color: 'text-red-600' },
+  INFO: { icon: 'ℹ️', label: '參考資訊', color: 'text-slate-600' },
+  ALERT: { icon: '🚨', label: '警報', color: 'text-red-600' },
 };
+
+const PRIORITY_BADGE: Record<AdvicePriority, { dot: string; label: string; chip: string }> = {
+  HIGH: { dot: '🔴', label: '高優先', chip: 'bg-red-50 text-red-700 border-red-200' },
+  MEDIUM: { dot: '🟡', label: '中優先', chip: 'bg-amber-50 text-amber-700 border-amber-200' },
+  LOW: { dot: '🟢', label: '低優先', chip: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+};
+
+const FALLBACK_CONFIG: AdviceVisualConfig = {
+  icon: '💡',
+  label: '臨床建議',
+  color: 'text-slate-600',
+};
+
+function resolveTypeConfig(rawType: string | undefined): AdviceVisualConfig | null {
+  if (!rawType) return null;
+  const upper = rawType.toUpperCase();
+  if (upper in TYPE_CONFIG) return TYPE_CONFIG[upper as AdviceType];
+  if (upper in HERMES_TYPE_CONFIG) return HERMES_TYPE_CONFIG[upper];
+  return null;
+}
+
+function normalizePriority(value: unknown): AdvicePriority | null {
+  if (typeof value !== 'string') return null;
+  const upper = value.trim().toUpperCase();
+  return upper === 'HIGH' || upper === 'MEDIUM' || upper === 'LOW'
+    ? (upper as AdvicePriority)
+    : null;
+}
 
 function normalizeAdvice(advice: CdssAdviceInput): {
   icon: string;
@@ -34,26 +83,54 @@ function normalizeAdvice(advice: CdssAdviceInput): {
   content: string;
   confidence: number | null;
   disclaimer: string | null;
+  source: string | null;
+  priority: AdvicePriority | null;
 } {
-  const typed = advice as CdssAdvice;
+  const typed = advice as CdssAdvice & HermesCdssAdvice;
   const legacy = advice as LegacyCdssAdvice;
+  const priority = normalizePriority(typed.priority ?? legacy.priority);
 
-  if (typed.type && TYPE_CONFIG[typed.type]) {
-    const config = TYPE_CONFIG[typed.type];
-    // confidence may be 0-1 float or 0-100 integer
-    const rawConf = typed.confidence ?? 0;
-    const confidence = rawConf <= 1 ? Math.round(rawConf * 100) : rawConf;
-    return { ...config, content: typed.content, confidence, disclaimer: typed.disclaimer ?? null };
+  // Prefer the modern {type, content, confidence} shape — accept any type string and
+  // fall back to a neutral icon when the type is unknown.
+  if (typed.content || typed.type) {
+    const config = resolveTypeConfig(typed.type) ?? FALLBACK_CONFIG;
+    const rawConf = typed.confidence;
+    const confidence =
+      typeof rawConf === 'number' && Number.isFinite(rawConf)
+        ? rawConf <= 1
+          ? Math.round(rawConf * 100)
+          : Math.round(rawConf)
+        : null;
+    return {
+      ...config,
+      content: typed.content ?? legacy.advice ?? '',
+      confidence,
+      disclaimer: typed.disclaimer ?? null,
+      source: typed.source ?? typed.rule_id ?? null,
+      priority,
+    };
   }
 
-  // Legacy format: {priority, advice}
-  const priority = legacy.priority ?? 'MEDIUM';
-  const config = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG['MEDIUM'];
-  return { ...config, content: legacy.advice ?? '', confidence: null, disclaimer: null };
+  // Pure legacy {priority, advice} envelope — only used when modern fields are absent.
+  // Do NOT default unknown priority to MEDIUM; render a neutral type badge and let the
+  // priority chip stay hidden when the upstream signal is missing.
+  return {
+    ...FALLBACK_CONFIG,
+    content: legacy.advice ?? '',
+    confidence: null,
+    disclaimer: null,
+    source: null,
+    priority,
+  };
 }
 
 export default function CdssAdviceCard({ advice }: CdssAdviceCardProps) {
-  const { icon, label, color, content, confidence, disclaimer } = normalizeAdvice(advice);
+  const { icon, label, color, content, confidence, disclaimer, source, priority } =
+    normalizeAdvice(advice);
+
+  // Defensive: an advice with no content adds no value — skip rendering instead of
+  // showing an empty card with only the badge.
+  if (!content) return null;
 
   const confidenceColor =
     confidence === null
@@ -64,17 +141,30 @@ export default function CdssAdviceCard({ advice }: CdssAdviceCardProps) {
           ? 'bg-yellow-500'
           : 'bg-red-500';
 
+  const priorityBadge = priority ? PRIORITY_BADGE[priority] : null;
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <span className="text-2xl">{icon}</span>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
           <span className={`text-sm font-semibold ${color}`}>{label}</span>
+          {priorityBadge && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${priorityBadge.chip}`}
+            >
+              <span aria-hidden>{priorityBadge.dot}</span>
+              {priorityBadge.label}
+            </span>
+          )}
+          {source && (
+            <span className="text-[11px] text-gray-400 truncate">{source}</span>
+          )}
         </div>
         {/* Confidence */}
         {confidence !== null && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-gray-400">信心度</span>
             <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
@@ -88,7 +178,9 @@ export default function CdssAdviceCard({ advice }: CdssAdviceCardProps) {
       </div>
 
       {/* Content */}
-      <p className="text-sm text-gray-700 leading-relaxed mb-3">{content}</p>
+      <p className="text-sm text-gray-700 leading-relaxed mb-3 whitespace-pre-wrap break-words">
+        {content}
+      </p>
 
       {/* Disclaimer */}
       {disclaimer && (

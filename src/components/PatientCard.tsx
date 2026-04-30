@@ -26,7 +26,7 @@ export default function PatientCard({
         <div>
           <h3 className="text-base font-semibold text-gray-900">{patient.name}</h3>
           <p className="text-sm text-gray-500 mt-0.5">
-            {patient.gender === 'M' ? '男' : '女'} / {patient.age != null ? `${patient.age} 歲` : '-'}
+            {patient.gender === 'MALE' || patient.gender === 'M' ? '男' : patient.gender === 'FEMALE' || patient.gender === 'F' ? '女' : '-'} / {patient.age != null ? `${patient.age} 歲` : '-'}
           </p>
         </div>
         <RiskBadge level={patient.riskLevel} />

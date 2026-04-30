@@ -1,0 +1,49 @@
+{
+  "firstRecs": [
+    "依 2025 台灣血脂指引，AMI 後極高風險目標 LDL < 55 mg/dL。目前 rosuvastatin 20mg QHS 劑量不足，建議強化為高強度 statin (40-80mg)。 (SKILL/ami#AMI-002; 台灣血脂 2025 §3)",
+    "AMI 後病人，不論有無 DM，若 LVEF <= 40% 或有 HF symptoms 建議使用 SGLT2i。同時病人有 DM，此藥物有 CV outcome benefit。 (SKILL/diabetes#DM-003; SKILL/ami#AMI-006)",
+    "建議病人於 4-6 週後追蹤 LDL，評估 statin 強化後達標情況。 (SKILL/ami#AMI-002)",
+    "建議病人於 3 個月後追蹤 HbA1c，評估新藥物對血糖控制之成效。 (SKILL/diabetes#DM-001)",
+    "建議轉介心臟復健以促進恢復。 (SKILL/ami#AMI-007)"
+  ],
+  "secondRecs": [
+    "依 2025 台灣血脂指引，AMI 後極高風險目標 LDL < 55 mg/dL。目前 rosuvastatin 20mg QHS 劑量不足，建議強化為高強度 statin (40-80mg)。 (SKILL/ami#AMI-002; 台灣血脂 2025 §3)",
+    "AMI 後病人，不論有無 DM，若 LVEF <= 40% 或有 HF symptoms 建議使用 SGLT2i。同時病人有 DM，此藥物有 CV outcome benefit。 (SKILL/diabetes#DM-003; SKILL/ami#AMI-006)",
+    "建議病人於 4-6 週後追蹤 LDL，評估 statin 強化後達標情況。 (SKILL/ami#AMI-002)",
+    "建議病人於 3 個月後追蹤 HbA1c，評估新藥物對血糖控制之成效。 (SKILL/diabetes#DM-001)",
+    "建議轉介心臟復健以促進恢復。 (SKILL/ami#AMI-007)"
+  ],
+  "syncTxt": "sync 結果：{\"processed\":3,\"write_example\":0,\"evolve_skill\":3,\"needs_seed\":0,\"ignored\":0}",
+  "networkLog": [
+    {
+      "url": "http://localhost:17900/analyze",
+      "status": 200,
+      "bodyPreview": "{\"summary_id\":5,\"soap\":{\"S\":\"病人 NSTEMI s/p PCI 3 週，過去有 DM 病史，此次因糖化血色素不理想回診。\",\"O\":\"**age**: 65\\n**sex**: F\\n**labs**:\\n**LDL**: 88.0mg/dL\\n**HbA1c**: 7.8%\\n**Cr**: 1.1mg/dL\\n**medications**:\\n- aspirin 100mg QD\\n- clopidogrel 75mg QD\\n- rosu"
+    },
+    {
+      "url": "http://localhost:17900/feedback",
+      "status": 202,
+      "bodyPreview": "{\"feedback_id\":7,\"sync_status\":\"PENDING\"}"
+    },
+    {
+      "url": "http://localhost:17900/feedback",
+      "status": 202,
+      "bodyPreview": "{\"feedback_id\":8,\"sync_status\":\"PENDING\"}"
+    },
+    {
+      "url": "http://localhost:17900/feedback",
+      "status": 202,
+      "bodyPreview": "{\"feedback_id\":9,\"sync_status\":\"PENDING\"}"
+    },
+    {
+      "url": "http://localhost:17900/admin/feedback/sync",
+      "status": 200,
+      "bodyPreview": "{\"processed\":3,\"write_example\":0,\"evolve_skill\":3,\"needs_seed\":0,\"ignored\":0}"
+    },
+    {
+      "url": "http://localhost:17900/analyze",
+      "status": 200,
+      "bodyPreview": "{\"summary_id\":6,\"soap\":{\"S\":\"病人 NSTEMI s/p PCI 3 週，過去有 DM 病史，此次因糖化血色素不理想回診。\",\"O\":\"**age**: 65\\n**sex**: F\\n**labs**:\\n**LDL**: 88.0mg/dL\\n**HbA1c**: 7.8%\\n**Cr**: 1.1mg/dL\\n**medications**:\\n- aspirin 100mg QD\\n- clopidogrel 75mg QD\\n- rosu"
+    }
+  ]
+}

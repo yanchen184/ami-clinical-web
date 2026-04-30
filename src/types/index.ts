@@ -69,6 +69,7 @@ export interface SoapSummary {
 
 // ── CDSS Advice ──
 export type AdviceType = 'MEDICATION' | 'LIFESTYLE' | 'REFERRAL' | 'MONITORING';
+export type AdvicePriority = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface CdssAdvice {
   id: number;
@@ -78,6 +79,8 @@ export interface CdssAdvice {
   evidenceLevel?: string;
   disclaimer: string;
   createdAt: string;
+  priority?: AdvicePriority | null;
+  source?: string | null;
 }
 
 // ── Measurement ──
@@ -174,12 +177,31 @@ export interface KpiSummary {
 }
 
 // ── Doctor Feedback ──
+export interface CorrectedSoap {
+  S?: string;
+  O?: string;
+  A?: string;
+  P?: string;
+}
+
 export interface DoctorFeedback {
   patientId: string;
   rating: number;
   comment: string;
+  /** 整段訂正後的 SOAP（Hermes evolve_skill 用） */
+  correctedSoap?: CorrectedSoap;
+  /** 為了相容性保留，會被合併進 correctedSoap */
   correctedAssessment?: string;
   correctedPlan?: string;
+  /** 訂正原因分類，用於 evolve_skill 聚合 pattern */
+  reasonCategory?:
+    | 'dose_too_high'
+    | 'dose_too_low'
+    | 'wrong_drug'
+    | 'contraindication'
+    | 'other';
+  /** 對應 ai_summary 主鍵，後端會解析成 UUID */
+  aiSummaryId?: string;
 }
 
 // ── Alert Rule ──

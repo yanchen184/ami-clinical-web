@@ -72,7 +72,7 @@ export default function CMPatientDetailPage() {
           <div className="w-14 h-14 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center text-xl font-bold">
             {patient.name.charAt(0)}
           </div>
-          <div className="flex-1 grid grid-cols-4 gap-4">
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-gray-400">姓名</p>
               <p className="text-sm font-medium">{patient.name}</p>
@@ -80,7 +80,7 @@ export default function CMPatientDetailPage() {
             <div>
               <p className="text-xs text-gray-400">年齡 / 性別</p>
               <p className="text-sm font-medium">
-                {patient.age != null ? `${patient.age} 歲` : '-'} / {patient.gender === 'M' ? '男' : '女'}
+                {patient.age != null ? `${patient.age} 歲` : '-'} / {patient.gender === 'MALE' || patient.gender === 'M' ? '男' : patient.gender === 'FEMALE' || patient.gender === 'F' ? '女' : '-'}
               </p>
             </div>
             <div>
