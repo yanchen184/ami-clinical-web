@@ -14,6 +14,7 @@ import AlertRulePage from './pages/admin/AlertRulePage';
 import MedMasterPage from './pages/admin/MedMasterPage';
 import FormulaMasterPage from './pages/admin/FormulaMasterPage';
 import FormulaComboPage from './pages/admin/FormulaComboPage';
+import RulebaseDemoPage from './pages/RulebaseDemoPage';
 import type { Role } from './types';
 
 const queryClient = new QueryClient({
@@ -73,6 +74,7 @@ export default function App() {
           {/* Common Authenticated Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/notifications" element={<NotificationPage />} />
+            <Route path="/rulebase-demo" element={<RulebaseDemoPage />} />
           </Route>
 
           {/* Doctor Routes */}
