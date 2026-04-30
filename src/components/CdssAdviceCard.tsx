@@ -6,6 +6,8 @@ interface LegacyCdssAdvice {
   id?: number;
   priority?: AdvicePriority;
   advice?: string;
+  // Internal seed / Java backend uses `message`; Hermes uses `content`.
+  message?: string;
   createdAt?: string;
 }
 
@@ -103,7 +105,7 @@ function normalizeAdvice(advice: CdssAdviceInput): {
         : null;
     return {
       ...config,
-      content: typed.content ?? legacy.advice ?? '',
+      content: typed.content ?? legacy.advice ?? legacy.message ?? '',
       confidence,
       disclaimer: typed.disclaimer ?? null,
       source: typed.source ?? typed.rule_id ?? null,
@@ -111,12 +113,11 @@ function normalizeAdvice(advice: CdssAdviceInput): {
     };
   }
 
-  // Pure legacy {priority, advice} envelope — only used when modern fields are absent.
-  // Do NOT default unknown priority to MEDIUM; render a neutral type badge and let the
-  // priority chip stay hidden when the upstream signal is missing.
+  // Pure legacy {priority, advice|message} envelope — used by /cdss-advice rows
+  // persisted via the Internal AI summary seed path.
   return {
     ...FALLBACK_CONFIG,
-    content: legacy.advice ?? '',
+    content: legacy.advice ?? legacy.message ?? '',
     confidence: null,
     disclaimer: null,
     source: null,
@@ -144,7 +145,10 @@ export default function CdssAdviceCard({ advice }: CdssAdviceCardProps) {
   const priorityBadge = priority ? PRIORITY_BADGE[priority] : null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+    <div
+      data-testid="cdss-advice-card"
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"
+    >
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <span className="text-2xl">{icon}</span>

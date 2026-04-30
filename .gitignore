@@ -4,6 +4,7 @@ dist/
 .env.local
 .env.*.local
 test-results/
+e2e/artifacts/
 
 # Claude Code local settings
 .claude/

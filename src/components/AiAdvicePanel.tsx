@@ -1,8 +1,24 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { submitDoctorFeedback } from '../api/patient';
-import type { CdssAdvice, DoctorFeedback, SoapSummary } from '../types';
+import type { AdvicePriority, CdssAdvice, DoctorFeedback, SoapSummary } from '../types';
 import CdssAdviceCard from './CdssAdviceCard';
+
+// CDSS items use these higher-level types from the Hermes pipeline; the legacy
+// AdviceType (MEDICATION/LIFESTYLE/...) goes in `type` too, so we treat anything
+// not WARNING/ALERT as a recommendation.
+function isWarning(advice: CdssAdvice): boolean {
+  const raw = (advice as { type?: string }).type;
+  if (typeof raw !== 'string') return false;
+  const t = raw.toUpperCase();
+  return t === 'WARNING' || t === 'ALERT';
+}
+
+function getPriority(advice: CdssAdvice): AdvicePriority | 'NONE' {
+  const p = advice.priority;
+  if (p === 'HIGH' || p === 'MEDIUM' || p === 'LOW') return p;
+  return 'NONE';
+}
 
 interface AiAdvicePanelProps {
   patientId: string;
@@ -34,6 +50,35 @@ export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvi
     onSuccess: () => setFeedbackSent(true),
   });
 
+  // Partition CDSS items: WARNING/ALERT 置頂、其餘按 priority 分桶
+  const { warnings, high, medium, low, none } = useMemo(() => {
+    const buckets: {
+      warnings: CdssAdvice[];
+      high: CdssAdvice[];
+      medium: CdssAdvice[];
+      low: CdssAdvice[];
+      none: CdssAdvice[];
+    } = { warnings: [], high: [], medium: [], low: [], none: [] };
+    if (!cdssAdvice) return buckets;
+    for (const item of cdssAdvice) {
+      if (isWarning(item)) {
+        buckets.warnings.push(item);
+        continue;
+      }
+      const p = getPriority(item);
+      if (p === 'HIGH') buckets.high.push(item);
+      else if (p === 'MEDIUM') buckets.medium.push(item);
+      else if (p === 'LOW') buckets.low.push(item);
+      else buckets.none.push(item);
+    }
+    return buckets;
+  }, [cdssAdvice]);
+
+  const totalCount = (cdssAdvice ?? []).length;
+  const recommendationCount = high.length + medium.length + low.length + none.length;
+  const allUnprioritized =
+    totalCount > 0 && warnings.length === 0 && high.length === 0 && medium.length === 0 && low.length === 0;
+
   const handleSubmit = () => {
     if (rating === 0) return;
     const correctedSoap =
@@ -62,21 +107,115 @@ export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvi
   return (
     <div className="space-y-6">
       {/* CDSS Advice */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">CDSS 調藥建議</h3>
-        {cdssAdvice && cdssAdvice.length > 0 && cdssAdvice.every((a) => !a.priority) && (
+      <div data-testid="cdss-advice-section">
+        <div className="flex items-baseline justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">CDSS 調藥建議</h3>
+          {totalCount > 0 && (
+            <span className="text-xs text-gray-500">
+              共 {totalCount} 項
+              {warnings.length > 0 && `（含 ${warnings.length} 項警示）`}
+            </span>
+          )}
+        </div>
+
+        {allUnprioritized && (
           <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             ※ 本批建議來源 SKILL 規則尚未標註優先序，僅顯示類型徽章。
           </div>
         )}
-        <div className="space-y-4">
-          {cdssAdvice?.map((advice) => (
-            <CdssAdviceCard key={advice.id} advice={advice} />
-          ))}
-          {(!cdssAdvice || cdssAdvice.length === 0) && (
-            <p className="text-sm text-gray-400 py-4">目前無 CDSS 建議</p>
-          )}
-        </div>
+
+        {/* B. WARNING 獨立置頂 — 紅色 alert 區塊，視覺上跟臨床建議分開 */}
+        {warnings.length > 0 && (
+          <section
+            data-testid="cdss-warnings"
+            className="mb-5 rounded-xl border-2 border-red-300 bg-red-50/60 p-4"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl" aria-hidden>⚠️</span>
+              <h4 className="text-sm font-bold text-red-800">
+                警示 / 禁忌（{warnings.length}）
+              </h4>
+            </div>
+            <div className="space-y-3">
+              {warnings.map((advice) => (
+                <CdssAdviceCard key={advice.id} advice={advice} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* A. 臨床建議按優先級分區：HIGH 紅框強調 / MEDIUM 中性 / LOW 折疊 */}
+        {recommendationCount > 0 && (
+          <div className="space-y-5" data-testid="cdss-recommendations">
+            {high.length > 0 && (
+              <section
+                data-testid="cdss-priority-high"
+                className="rounded-xl border-2 border-red-200 bg-white p-4"
+              >
+                <h4 className="text-base font-semibold text-red-700 mb-3 flex items-center gap-2">
+                  <span aria-hidden>🔴</span>
+                  高優先建議（{high.length}）
+                </h4>
+                <div className="space-y-3">
+                  {high.map((advice) => (
+                    <CdssAdviceCard key={advice.id} advice={advice} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {medium.length > 0 && (
+              <section data-testid="cdss-priority-medium">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span aria-hidden>🟡</span>
+                  中優先建議（{medium.length}）
+                </h4>
+                <div className="space-y-3">
+                  {medium.map((advice) => (
+                    <CdssAdviceCard key={advice.id} advice={advice} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {low.length > 0 && (
+              <details
+                data-testid="cdss-priority-low"
+                className="rounded-lg border border-gray-200 bg-gray-50/40"
+              >
+                <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 flex items-center gap-2">
+                  <span aria-hidden>🟢</span>
+                  低優先建議（{low.length}）
+                  <span className="text-xs text-gray-400 ml-auto">點擊展開</span>
+                </summary>
+                <div className="space-y-3 px-3 pb-3 pt-1">
+                  {low.map((advice) => (
+                    <CdssAdviceCard key={advice.id} advice={advice} />
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {none.length > 0 && (
+              <section data-testid="cdss-priority-none">
+                {(high.length > 0 || medium.length > 0 || low.length > 0) && (
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">
+                    其他建議（{none.length}）
+                  </h4>
+                )}
+                <div className="space-y-3">
+                  {none.map((advice) => (
+                    <CdssAdviceCard key={advice.id} advice={advice} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {totalCount === 0 && (
+          <p className="text-sm text-gray-400 py-4">目前無 CDSS 建議</p>
+        )}
       </div>
 
       {/* Doctor Feedback */}

@@ -1,6 +1,7 @@
-// PhaseB：前端不再直連 ai-service，改走 Java proxy /api/patients/{id}/ai/*
-// VITE_AI_SERVICE_URL 仍保留作為 E2E mock 攔截 / 開發直連用途。
-const AI_BASE = (import.meta.env.VITE_AI_SERVICE_URL as string) || '';
+// PhaseB：前端永遠走 Java proxy /api/patients/{id}/ai/*。
+// 不再讀取 VITE_AI_SERVICE_URL — 之前 .env 裡的 17900 與實際 ai-service 17090 不一致，
+// 直連模式會 CORS 失敗。要直連請走 Java proxy（已驗證可用）。
+const AI_BASE = '';
 
 export interface PatientFixture {
   patientId: string;
@@ -80,15 +81,30 @@ export interface FeedbackSyncResult {
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('token');
   const res = await fetch(url, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`HTTP ${res.status}: ${body.slice(0, 300)}`);
   }
-  return res.json() as Promise<T>;
+  const json = (await res.json()) as unknown;
+  // Unwrap company common-response envelope: { code, data, message, success }
+  if (
+    json &&
+    typeof json === 'object' &&
+    'code' in (json as Record<string, unknown>) &&
+    'data' in (json as Record<string, unknown>)
+  ) {
+    return (json as { data: T }).data;
+  }
+  return json as T;
 }
 
 /** PhaseB：透過 Java proxy 打 ai-service。 */
