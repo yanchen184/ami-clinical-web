@@ -11,11 +11,13 @@ interface NavItem {
 
 const DOCTOR_NAV: NavItem[] = [
   { label: '病患列表', to: '/doctor/patients', icon: '👥' },
+  { label: 'Rulebase Demo', to: '/rulebase-demo', icon: '🧠' },
 ];
 
 const CM_NAV: NavItem[] = [
   { label: '個案管理', to: '/casemanager/patients', icon: '👥' },
   { label: 'KPI 儀表板', to: '/casemanager/dashboard', icon: '📊' },
+  { label: 'Rulebase Demo', to: '/rulebase-demo', icon: '🧠' },
 ];
 
 const ADMIN_NAV: NavItem[] = [
@@ -26,6 +28,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: '藥品基本檔', to: '/admin/med-master', icon: '💊' },
   { label: '配方主檔', to: '/admin/formula-master', icon: '🧪' },
   { label: '配方組合', to: '/admin/formula-combos', icon: '🔗' },
+  { label: 'Rulebase Demo', to: '/rulebase-demo', icon: '🧠' },
 ];
 
 interface SidebarProps {
