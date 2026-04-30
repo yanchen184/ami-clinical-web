@@ -16,7 +16,7 @@ import MedMasterPage from './pages/admin/MedMasterPage';
 import FormulaMasterPage from './pages/admin/FormulaMasterPage';
 import FormulaComboPage from './pages/admin/FormulaComboPage';
 import AiDemoPage from './pages/AiDemoPage';
-import RulebaseDemoPage from './pages/RulebaseDemoPage';
+import FeedbackReviewPage from './pages/admin/FeedbackReviewPage';
 import type { Role } from './types';
 
 const queryClient = new QueryClient({
@@ -91,7 +91,6 @@ export default function App() {
           {/* Common Authenticated Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/notifications" element={<NotificationPage />} />
-            <Route path="/rulebase-demo" element={<RulebaseDemoPage />} />
           </Route>
 
           {/* Doctor Routes */}
@@ -113,6 +112,7 @@ export default function App() {
             <Route path="/admin/med-master" element={<MedMasterPage />} />
             <Route path="/admin/formula-master" element={<FormulaMasterPage />} />
             <Route path="/admin/formula-combos" element={<FormulaComboPage />} />
+            <Route path="/admin/feedback-review" element={<FeedbackReviewPage />} />
           </Route>
 
           {/* Catch-all */}
