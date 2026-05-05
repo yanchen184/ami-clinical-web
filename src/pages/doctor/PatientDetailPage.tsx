@@ -19,6 +19,7 @@ import DiagnosisList from '../../components/DiagnosisList';
 import AdverseReactionList from '../../components/AdverseReactionList';
 import AiAdvicePanel from '../../components/AiAdvicePanel';
 import HermesTraceCard from '../../components/HermesTraceCard';
+import AnalyzeProgressIndicator from '../../components/AnalyzeProgressIndicator';
 
 type TabKey = 'overview' | 'hermes' | 'trends' | 'medications' | 'diagnoses' | 'adverse';
 
@@ -242,6 +243,11 @@ export default function DoctorPatientDetailPage() {
                 {analyzeMutation.isPending ? '分析中…' : '立即觸發 AI 分析'}
               </button>
             </div>
+            {analyzeMutation.isPending && (
+              <div className="mb-3">
+                <AnalyzeProgressIndicator active />
+              </div>
+            )}
             {analyzeMutation.isError && (
               <p className="mb-3 text-sm text-red-600">
                 觸發失敗：{(analyzeMutation.error as Error)?.message}
@@ -286,6 +292,11 @@ export default function DoctorPatientDetailPage() {
                 {analyzeMutation.isPending ? '分析中…' : '立即觸發 AI 分析'}
               </button>
             </div>
+            {analyzeMutation.isPending && (
+              <div className="mt-3">
+                <AnalyzeProgressIndicator active />
+              </div>
+            )}
             {analyzeMutation.isError && (
               <p
                 data-testid="hermes-trace-error"
