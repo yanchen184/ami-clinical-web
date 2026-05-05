@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { submitDoctorFeedback } from '../api/patient';
 import type { AdvicePriority, CdssAdvice, DoctorFeedback, SoapSummary } from '../types';
@@ -42,6 +42,16 @@ export default function AiAdvicePanel({ patientId, summary, cdssAdvice }: AiAdvi
   const [reasonCategory, setReasonCategory] =
     useState<DoctorFeedback['reasonCategory']>('other');
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  // 換病人就重置回饋表單狀態，避免上一位的「已送出」訊息殘留到新病人。
+  useEffect(() => {
+    setRating(0);
+    setComment('');
+    setCorrectedAssessment('');
+    setCorrectedPlan('');
+    setReasonCategory('other');
+    setFeedbackSent(false);
+  }, [patientId]);
 
   const showCorrectionFields = rating > 0 && rating <= 2;
 

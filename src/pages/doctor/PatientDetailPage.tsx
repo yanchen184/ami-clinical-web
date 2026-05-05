@@ -23,6 +23,12 @@ import AnalyzeProgressIndicator from '../../components/AnalyzeProgressIndicator'
 
 type TabKey = 'overview' | 'hermes' | 'trends' | 'medications' | 'diagnoses' | 'adverse';
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  return String(err ?? '未知錯誤');
+}
+
 const VALID_LAB_NAMES = new Set([
   'LDL_C', 'HBA1C', 'EGFR', 'SCR', 'SBP', 'DBP', 'AST', 'ALT', 'LVEF',
 ]);
@@ -95,6 +101,11 @@ export default function DoctorPatientDetailPage() {
   const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResponse | null>(null);
   const analyzeMutation = useMutation({
     mutationFn: () => {
+      // measurements 還沒載入就觸發 → 直接擋住，避免送空 labs 給 LLM
+      // 造成 baseline 計算空缺、CDSS 退化成沒有檢驗依據的回應。
+      if (!measurements) {
+        throw new Error('檢驗數據尚未載入，請稍候再觸發分析');
+      }
       const dx = (patient?.diagnosis ?? '') + ' ' + (patient?.dischargeDiagnosis ?? '');
       const fixture: PatientFixture = {
         patientId,
@@ -106,7 +117,7 @@ export default function DoctorPatientDetailPage() {
         has_hyperlipidemia: /lipid|hld/i.test(dx),
         has_hf: /heart\s*failure|\bhf\b/i.test(dx),
         has_ckd: /renal|ckd/i.test(dx),
-        labs: buildLabsFromMeasurements(measurements ?? []),
+        labs: buildLabsFromMeasurements(measurements),
         medications: [],
         note: 'Triggered from DoctorPatientDetailPage Hermes tab',
       };
@@ -197,6 +208,13 @@ export default function DoctorPatientDetailPage() {
       {/* SOAP Summary */}
       {summary && <div className="mb-6"><SoapCard summary={summary} /></div>}
 
+      {/* AI 分析進度條：放在 Tab 之外，避免切 tab 時 unmount → 計時器歸零。 */}
+      {analyzeMutation.isPending && (
+        <div className="mb-4">
+          <AnalyzeProgressIndicator active />
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="flex gap-1 mb-6 border-b border-gray-200">
         {TABS.map((tab) => (
@@ -243,14 +261,9 @@ export default function DoctorPatientDetailPage() {
                 {analyzeMutation.isPending ? '分析中…' : '立即觸發 AI 分析'}
               </button>
             </div>
-            {analyzeMutation.isPending && (
-              <div className="mb-3">
-                <AnalyzeProgressIndicator active />
-              </div>
-            )}
             {analyzeMutation.isError && (
               <p className="mb-3 text-sm text-red-600">
-                觸發失敗：{(analyzeMutation.error as Error)?.message}
+                觸發失敗：{errorMessage(analyzeMutation.error)}
               </p>
             )}
             {analyzeResult && (
@@ -292,17 +305,12 @@ export default function DoctorPatientDetailPage() {
                 {analyzeMutation.isPending ? '分析中…' : '立即觸發 AI 分析'}
               </button>
             </div>
-            {analyzeMutation.isPending && (
-              <div className="mt-3">
-                <AnalyzeProgressIndicator active />
-              </div>
-            )}
             {analyzeMutation.isError && (
               <p
                 data-testid="hermes-trace-error"
                 className="mt-3 text-sm text-red-600"
               >
-                觸發失敗：{(analyzeMutation.error as Error)?.message}
+                觸發失敗：{errorMessage(analyzeMutation.error)}
               </p>
             )}
           </section>
